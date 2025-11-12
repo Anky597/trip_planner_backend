@@ -1,0 +1,10 @@
+trip_planner_bckend/myenv
+myenv/  
+pycache/
+__pycache__/
+.env
+.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
