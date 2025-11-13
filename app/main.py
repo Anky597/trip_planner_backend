@@ -6,12 +6,15 @@ from app.core.config import settings
 from app.api import users, groups, recommendations, plans
 from app import prompt_hub    
 from dotenv import load_dotenv
+import logging
 load_dotenv() 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     prompt_hub.langfuse
+    logging.getLogger(__name__).info("Application lifespan started")
     yield
+    logging.getLogger(__name__).info("Application lifespan ended")
 
 def create_app():
     app = FastAPI(
@@ -38,6 +41,7 @@ def create_app():
     app.include_router(recommendations.router, prefix="/api/v1")
     app.include_router(plans.router, prefix="/api/v1")
 
+    logging.getLogger(__name__).info("Routers registered. Backend ready.")
     return app
 
 app = create_app()

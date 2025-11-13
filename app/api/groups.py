@@ -6,11 +6,14 @@ from app import prompt_hub
 import uuid
 from datetime import datetime
 import asyncio
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.post("/groups", response_model=GroupResponse, responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
 async def create_group(group: GroupCreate):
+    logger.info("create_group: start name=%s destination=%s creator=%s", group.group_name, group.destination, group.creator_email)
     with prompt_hub.langfuse.trace(name="group_creation_journey") as trace:
         loop = asyncio.get_running_loop()
         creator = await loop.run_in_executor(None, db.get_user_by_email, group.creator_email)
@@ -45,10 +48,12 @@ async def create_group(group: GroupCreate):
         await loop.run_in_executor(None, db.insert_knowledge_graph, kg_record)
         kn_summary = await loop.run_in_executor(None, knowledge.generate_kn_summary, kn_data)
         await loop.run_in_executor(None, db.update_group_kn_summary, group_data["id"], kn_summary)
+        logger.info("create_group: success id=%s", group_data["id"])
         return group_data
 
 @router.post("/groups/{group_id}/members", response_model=MemberResponse, responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
 async def add_member(group_id: str, member: MemberAdd):
+    logger.info("add_member: start group_id=%s email=%s", group_id, member.user_email)
     with prompt_hub.langfuse.trace(name="group_member_add_journey") as trace:
         loop = asyncio.get_running_loop()
         user = await loop.run_in_executor(None, db.get_user_by_email, member.user_email)
@@ -78,10 +83,12 @@ async def add_member(group_id: str, member: MemberAdd):
         await loop.run_in_executor(None, db.insert_knowledge_graph, kg_record)
         kn_summary = await loop.run_in_executor(None, knowledge.generate_kn_summary, kn_data)
         await loop.run_in_executor(None, db.update_group_kn_summary, group_id, kn_summary)
+        logger.info("add_member: success group_id=%s user_id=%s", group_id, user["id"])
         return member_data
 
 @router.get("/groups/{group_id}/traits", response_model=GroupTraitsResponse, responses={404: {"model": ErrorResponse}})
 async def get_group_traits(group_id: str):
+    logger.info("get_group_traits: start group_id=%s", group_id)
     loop = asyncio.get_running_loop()
 
     group = await loop.run_in_executor(None, db.get_group, group_id)
@@ -95,14 +102,17 @@ async def get_group_traits(group_id: str):
     user_ids = [m["user_id"] for m in members]
     users = await loop.run_in_executor(None, db.get_users_by_ids, user_ids)
 
-    return {
+    result = {
         "group_id": group_id,
         "group_name": group["name"],
         "group_members": [{"persona_traits": u["persona_traits"], "ai_summary": u["ai_summary"]} for u in users]
     }
+    logger.info("get_group_traits: success group_id=%s members=%d", group_id, len(result["group_members"]))
+    return result
 
 @router.post("/groups/{group_id}/process", responses={404: {"model": ErrorResponse}})
 async def process_group_manually(group_id: str):
+    logger.info("process_group_manually: start group_id=%s", group_id)
     with prompt_hub.langfuse.trace(name="manual_group_processing") as trace:
         loop = asyncio.get_running_loop()
         group = await loop.run_in_executor(None, db.get_group, group_id)
@@ -122,4 +132,5 @@ async def process_group_manually(group_id: str):
         await loop.run_in_executor(None, db.insert_knowledge_graph, kg_record)
         kn_summary = await loop.run_in_executor(None, knowledge.generate_kn_summary, kn_data)
         await loop.run_in_executor(None, db.update_group_kn_summary, group_id, kn_summary)
+        logger.info("process_group_manually: success group_id=%s", group_id)
         return {"message": "Processing completed"}

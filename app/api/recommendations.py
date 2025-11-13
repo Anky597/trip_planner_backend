@@ -5,11 +5,14 @@ from app.services import recommend
 from app import prompt_hub
 import asyncio
 import datetime
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.get("/groups/{group_id}/recommendations", response_model=RecommendationsResponse)
 async def get_recommendations(group_id: str):
+    logger.info("get_recommendations: start group_id=%s", group_id)
     with prompt_hub.langfuse.trace(name="recommendation_plan_journey", metadata={"group_id": group_id}) as trace:
         loop = asyncio.get_running_loop()
 
@@ -25,8 +28,10 @@ async def get_recommendations(group_id: str):
                 group["ai_group_kn_summary"],
                 group["destination"],
             )
+            logger.info("get_recommendations: success group_id=%s", group_id)
             return recommendations
         except Exception as e:
+            logger.exception("get_recommendations: fallback due to error group_id=%s", group_id)
             # Fallback: return a lightweight, deterministic recommendation payload
             # so the user flow isn't blocked during MVP demos (e.g., free tier/model errors).
             today = datetime.date.today()

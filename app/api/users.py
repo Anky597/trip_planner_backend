@@ -6,14 +6,18 @@ from langfuse import Langfuse
 import uuid
 from datetime import datetime
 import asyncio
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.post("/users", response_model=UserResponse)
 async def create_user(user: UserCreate):
+    logger.info("create_user: start email=%s name=%s", user.email, user.name)
     with prompt_hub.langfuse.trace(name="user_signup_journey", user_id=user.email) as trace:
         existing_user = db.get_user_by_email(user.email)
         if existing_user:
+            logger.warning("create_user: user exists email=%s", user.email)
             raise HTTPException(status_code=400, detail="User already exists")
 
         template_str, prompt_config = prompt_hub.get_prompt("user_intrest")
@@ -60,15 +64,18 @@ async def create_user(user: UserCreate):
         }
 
         db.insert_user(user_data)
+        logger.info("create_user: success id=%s email=%s", user_data["id"], user.email)
         return user_data
 
 
 @router.get("/users/info", response_model=UserInfoResponse)
 async def get_user_info(email: str = Query(..., description="User email address")):
+    logger.info("get_user_info: start email=%s", email)
     loop = asyncio.get_running_loop()
 
     user = await loop.run_in_executor(None, db.get_user_by_email, email)
     if not user:
+        logger.warning("get_user_info: user not found email=%s", email)
         raise HTTPException(status_code=404, detail="User not found")
 
     user_groups = await loop.run_in_executor(None, db.get_user_groups, user["id"])
@@ -113,4 +120,5 @@ async def get_user_info(email: str = Query(..., description="User email address"
         # We still compute it above to avoid future errors in case of internal usage.
         groups_info.append(group_info)
 
+    logger.info("get_user_info: success email=%s groups=%d", email, len(groups_info))
     return UserInfoResponse(user=user, groups=groups_info)
