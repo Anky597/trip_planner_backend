@@ -29,6 +29,10 @@ def create_app():
         allow_headers=["*"],
     )
 
+    @app.get("/api/v1/health")
+    async def healthcheck():
+        return {"status": "ok"}
+
     app.include_router(users.router, prefix="/api/v1")
     app.include_router(groups.router, prefix="/api/v1")
     app.include_router(recommendations.router, prefix="/api/v1")
