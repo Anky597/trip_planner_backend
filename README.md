@@ -1,6 +1,6 @@
 # Trip Planner Backend
-# Application Link : - https://group-quest.vercel.app/
-Front end repo : - https://github.com/Anky597/trip_planner_frontend
+# Application Link: - https://group-quest.vercel.app/
+Front-end repo: - https://github.com/Anky597/trip_planner_frontend
 FastAPI-based async backend for collaborative AI trip planning with multi-API key support for rate limit redundancy, comprehensive LLM integration, and full observability.
 
 ## 📋 Table of Contents
